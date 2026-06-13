@@ -2,6 +2,7 @@
 
 #include "torrent/TorrentFile.h"
 #include "torrent/TorrentMetadata.h"
+#include "torrent/InfoHashGenerator.h"
 
 int main()
 {
@@ -25,6 +26,8 @@ int main()
         TorrentMetadata::fromBencode(root);
 
     metadata.print();
+
+    std::cout << "Info Hash    : " << InfoHashGenerator::generate(root) << "\n";
 
     std::cout << "\n=======================================\n";
 
