@@ -1,85 +1,45 @@
-#include "TorrentMetadata.h"
+#include "TorrentFile.h"
 
-#include <iostream>
-#include <variant>
+#include <fstream>
+#include <sstream>
 
-TorrentMetadata TorrentMetadata::fromBencode(
-    const BencodeValue& root
+#include "../bencode/BencodeParser.h"
+
+bool TorrentFile::load(
+    const std::string& path
 )
 {
-    TorrentMetadata metadata;
+    std::ifstream file(
+        path,
+        std::ios::binary
+    );
 
-    auto rootDict =
-        std::get<BencodeDict>(
-            root.value
-        );
-
-    // announce
-    if(rootDict.count("announce"))
+    if(!file)
     {
-        metadata.announce =
-            std::get<std::string>(
-                rootDict["announce"].value
-            );
+        return false;
     }
 
-    // info dictionary
-    auto infoDict =
-        std::get<BencodeDict>(
-            rootDict["info"].value
-        );
+    std::stringstream buffer;
 
-    // name
-    if(infoDict.count("name"))
-    {
-        metadata.name =
-            std::get<std::string>(
-                infoDict["name"].value
-            );
-    }
+    buffer << file.rdbuf();
 
-    // piece length
-    if(infoDict.count("piece length"))
-    {
-        metadata.pieceLength =
-            std::get<long long>(
-                infoDict["piece length"].value
-            );
-    }
+    content = buffer.str();
 
-    // pieces
-    if(infoDict.count("pieces"))
-    {
-        metadata.pieces =
-            std::get<std::string>(
-                infoDict["pieces"].value
-            );
-    }
-
-    return metadata;
+    return true;
 }
 
-void TorrentMetadata::print() const
+BencodeValue TorrentFile::parse() const
 {
-    std::cout << "\n===== TORRENT INFO =====\n";
+    size_t pos = 0;
 
-    std::cout
-        << "Name         : "
-        << name
-        << '\n';
+    return BencodeParser::parse(
+        content,
+        pos
+    );
+}
 
-    std::cout
-        << "Tracker      : "
-        << announce
-        << '\n';
-
-    std::cout
-        << "Piece Length : "
-        << pieceLength
-        << '\n';
-
-    std::cout
-        << "Pieces Bytes : "
-        << pieces.size()
-        << '\n';
+const std::string&
+TorrentFile::getContent() const
+{
+    return content;
 }

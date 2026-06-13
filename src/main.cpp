@@ -1,13 +1,32 @@
-#pragma once
+#include <iostream>
 
-#include <string>
+#include "torrent/TorrentFile.h"
+#include "torrent/TorrentMetadata.h"
 
-struct TorrentMetadata
+int main()
 {
-    std::string announce;
-    std::string name;
+    std::cout << "========== BitTorrent Client ==========\n\n";
 
-    long long pieceLength;
+    TorrentFile torrent;
 
-    std::string pieces;
-};
+    if (!torrent.load("../torrents/sample.torrent"))
+    {
+        std::cout << "Failed to load torrent file!\n";
+        return 1;
+    }
+
+    std::cout << "Torrent file loaded successfully.\n";
+
+    BencodeValue root = torrent.parse();
+
+    std::cout << "Torrent file parsed successfully.\n";
+
+    TorrentMetadata metadata =
+        TorrentMetadata::fromBencode(root);
+
+    metadata.print();
+
+    std::cout << "\n=======================================\n";
+
+    return 0;
+}
