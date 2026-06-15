@@ -4,32 +4,132 @@
 #include "torrent/TorrentMetadata.h"
 #include "torrent/InfoHashGenerator.h"
 
+#include "tracker/TrackerClient.h"
+#include "tracker/UrlEncoder.h"
+#include "tracker/TrackerRequestBuilder.h"
+
+#include "peer/PeerIdGenerator.h"
+
+#include "network/TcpClient.h"
+
 int main()
 {
-    std::cout << "========== BitTorrent Client ==========\n\n";
-
-    TorrentFile torrent;
-
-    if (!torrent.load("../torrents/sample.torrent"))
+    try
     {
-        std::cout << "Failed to load torrent file!\n";
+        std::cout
+            << "=====================================\n"
+            << "       BitTorrent Client\n"
+            << "=====================================\n\n";
+
+        TorrentFile torrent;
+
+        if(!torrent.load("../torrents/sample.torrent"))
+        {
+            std::cerr
+                << "Failed to load torrent file\n";
+
+            return 1;
+        }
+
+        std::cout
+            << "Torrent file loaded successfully\n";
+
+        BencodeValue root =
+            torrent.parse();
+
+        std::cout
+            << "Torrent file parsed successfully\n";
+
+        TorrentMetadata metadata =
+            TorrentMetadata::fromBencode(
+                root
+            );
+
+        metadata.print();
+
+        std::string infoHash =
+            InfoHashGenerator::generate(
+                root
+            );
+
+        std::cout
+            << "\n===== INFO HASH =====\n"
+            << infoHash
+            << "\n";
+
+        TrackerInfo tracker =
+            TrackerClient::parseUrl(
+                metadata.announce
+            );
+
+        TrackerClient::printInfo(
+            tracker
+        );
+
+        std::string peerId =
+            PeerIdGenerator::generate();
+
+        std::cout
+            << "\n===== PEER ID =====\n"
+            << peerId
+            << "\n";
+
+        std::string encodedHash =
+            UrlEncoder::encode(
+                infoHash
+            );
+
+        std::cout
+            << "\n===== URL ENCODED HASH =====\n"
+            << encodedHash
+            << "\n";
+
+        std::string request =
+            TrackerRequestBuilder::build(
+                tracker,
+                encodedHash,
+                peerId,
+                12345
+            );
+
+        std::cout
+            << "\n===== TRACKER REQUEST =====\n";
+
+        std::cout
+            << request
+            << "\n";
+
+        std::cout
+            << "\n===== CONTACTING TRACKER =====\n";
+
+        std::string response =
+            TcpClient::sendRequest(
+                tracker.host,
+                tracker.port,
+                request
+            );
+
+        std::cout
+            << "\n===== TRACKER RESPONSE =====\n";
+
+        std::cout
+            << response
+            << "\n";
+
+        std::cout
+            << "\n=====================================\n"
+            << "            Finished\n"
+            << "\n=====================================\n";
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr
+            << "\nException: "
+            << e.what()
+            << '\n';
+
         return 1;
     }
-
-    std::cout << "Torrent file loaded successfully.\n";
-
-    BencodeValue root = torrent.parse();
-
-    std::cout << "Torrent file parsed successfully.\n";
-
-    TorrentMetadata metadata =
-        TorrentMetadata::fromBencode(root);
-
-    metadata.print();
-
-    std::cout << "Info Hash    : " << InfoHashGenerator::generate(root) << "\n";
-
-    std::cout << "\n=======================================\n";
 
     return 0;
 }
