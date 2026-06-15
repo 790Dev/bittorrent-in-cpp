@@ -5,13 +5,14 @@
 #include "torrent/InfoHashGenerator.h"
 
 #include "tracker/TrackerClient.h"
-#include "tracker/UrlEncoder.h"
 #include "tracker/TrackerRequestBuilder.h"
+#include "tracker/UrlEncoder.h"
 #include "tracker/HttpResponse.h"
 
 #include "peer/PeerIdGenerator.h"
 
 #include "network/TcpClient.h"
+#include "network/HttpsClient.h"
 
 int main()
 {
@@ -22,12 +23,23 @@ int main()
             << "       BitTorrent Client\n"
             << "=====================================\n\n";
 
+        // CHANGE THIS PATH IF NEEDED
+        std::string torrentPath =
+            "../torrents/sample.torrent";
+
+        std::cout
+            << "Loading torrent: "
+            << torrentPath
+            << "\n\n";
+
         TorrentFile torrent;
 
-        if (!torrent.load("../torrents/sample.torrent"))
+        if (!torrent.load(torrentPath))
         {
             std::cerr
-                << "Failed to load torrent file\n";
+                << "Failed to load torrent file:\n"
+                << torrentPath
+                << '\n';
 
             return 1;
         }
@@ -61,7 +73,7 @@ int main()
         std::cout
             << "\n===== INFO HASH =====\n"
             << hexHash
-            << "\n";
+            << '\n';
 
         TrackerInfo tracker =
             TrackerClient::parseUrl(
@@ -78,7 +90,7 @@ int main()
         std::cout
             << "\n===== PEER ID =====\n"
             << peerId
-            << "\n";
+            << '\n';
 
         std::string encodedHash =
             UrlEncoder::encode(
@@ -88,7 +100,7 @@ int main()
         std::cout
             << "\n===== URL ENCODED HASH =====\n"
             << encodedHash
-            << "\n";
+            << '\n';
 
         std::string request =
             TrackerRequestBuilder::build(
@@ -99,28 +111,38 @@ int main()
             );
 
         std::cout
-            << "\n===== TRACKER REQUEST =====\n";
-
-        std::cout
+            << "\n===== TRACKER REQUEST =====\n"
             << request
-            << "\n";
+            << '\n';
 
         std::cout
             << "\n===== CONTACTING TRACKER =====\n";
 
-        std::string rawResponse =
-            TcpClient::sendRequest(
-                tracker.host,
-                tracker.port,
-                request
-            );
+        std::string rawResponse;
+
+        if (tracker.isHttps)
+        {
+            rawResponse =
+                HttpsClient::sendRequest(
+                    tracker.host,
+                    tracker.port,
+                    request
+                );
+        }
+        else
+        {
+            rawResponse =
+                TcpClient::sendRequest(
+                    tracker.host,
+                    tracker.port,
+                    request
+                );
+        }
 
         std::cout
-            << "\n===== RAW RESPONSE =====\n";
-
-        std::cout
+            << "\n===== RAW RESPONSE =====\n"
             << rawResponse
-            << "\n";
+            << '\n';
 
         HttpResponse response =
             HttpResponse::parse(
@@ -129,38 +151,17 @@ int main()
 
         response.print();
 
-        if (response.statusCode == 302)
-        {
-            std::cout
-                << "\n===== REDIRECT DETECTED =====\n";
-
-            auto it =
-                response.headers.find(
-                    "Location"
-                );
-
-            if (it != response.headers.end())
-            {
-                std::cout
-                    << "Redirect URL:\n"
-                    << it->second
-                    << "\n";
-            }
-        }
-
         std::cout
             << "\n=====================================\n"
             << "            Finished\n"
-            << "\n=====================================\n";
+            << "=====================================\n";
     }
-    catch (const std::exception& e)
+    catch(const std::exception& e)
     {
         std::cerr
             << "\nException: "
             << e.what()
             << '\n';
-
-        return 1;
     }
 
     return 0;
