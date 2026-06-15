@@ -48,14 +48,19 @@ int main()
 
         metadata.print();
 
-        std::string infoHash =
+        std::string binaryHash =
             InfoHashGenerator::generate(
+                root
+            );
+
+        std::string hexHash =
+            InfoHashGenerator::generateHex(
                 root
             );
 
         std::cout
             << "\n===== INFO HASH =====\n"
-            << infoHash
+            << hexHash
             << "\n";
 
         TrackerInfo tracker =
@@ -77,7 +82,7 @@ int main()
 
         std::string encodedHash =
             UrlEncoder::encode(
-                infoHash
+                binaryHash
             );
 
         std::cout

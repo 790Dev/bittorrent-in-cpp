@@ -7,6 +7,8 @@ struct TrackerInfo
     std::string host;
     int port;
     std::string path;
+
+    bool isHttps = false;
 };
 
 class TrackerClient

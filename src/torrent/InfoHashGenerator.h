@@ -12,9 +12,17 @@ public:
         const BencodeValue& root
     );
 
+    static std::string generateHex(
+        const BencodeValue& root
+    );
+
 private:
 
-    static std::string sha1(
+    static std::string sha1Binary(
+        const std::string& data
+    );
+
+    static std::string sha1Hex(
         const std::string& data
     );
 };

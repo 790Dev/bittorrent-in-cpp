@@ -11,16 +11,29 @@ TrackerInfo TrackerClient::parseUrl(
 
     std::string workingUrl = url;
 
-    const std::string httpPrefix = "http://";
-
     if(
-        workingUrl.find(httpPrefix) == 0
+        workingUrl.rfind(
+            "https://",
+            0
+        ) == 0
     )
     {
+        info.isHttps = true;
+
         workingUrl =
-            workingUrl.substr(
-                httpPrefix.size()
-            );
+            workingUrl.substr(8);
+    }
+    else if(
+        workingUrl.rfind(
+            "http://",
+            0
+        ) == 0
+    )
+    {
+        info.isHttps = false;
+
+        workingUrl =
+            workingUrl.substr(7);
     }
 
     size_t slashPos =
@@ -28,7 +41,10 @@ TrackerInfo TrackerClient::parseUrl(
 
     std::string hostPort;
 
-    if(slashPos == std::string::npos)
+    if(
+        slashPos ==
+        std::string::npos
+    )
     {
         hostPort = workingUrl;
         info.path = "/";
@@ -50,10 +66,22 @@ TrackerInfo TrackerClient::parseUrl(
     size_t colonPos =
         hostPort.find(':');
 
-    if(colonPos == std::string::npos)
+    if(
+        colonPos ==
+        std::string::npos
+    )
     {
-        info.host = hostPort;
-        info.port = 80;
+        info.host =
+            hostPort;
+
+        if(info.isHttps)
+        {
+            info.port = 443;
+        }
+        else
+        {
+            info.port = 80;
+        }
     }
     else
     {
@@ -94,5 +122,10 @@ void TrackerClient::printInfo(
     std::cout
         << "Path : "
         << info.path
+        << '\n';
+
+    std::cout
+        << "Protocol : "
+        << (info.isHttps ? "HTTPS" : "HTTP")
         << '\n';
 }
