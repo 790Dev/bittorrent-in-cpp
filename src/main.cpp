@@ -7,6 +7,7 @@
 #include "tracker/TrackerClient.h"
 #include "tracker/UrlEncoder.h"
 #include "tracker/TrackerRequestBuilder.h"
+#include "tracker/HttpResponse.h"
 
 #include "peer/PeerIdGenerator.h"
 
@@ -23,7 +24,7 @@ int main()
 
         TorrentFile torrent;
 
-        if(!torrent.load("../torrents/sample.torrent"))
+        if (!torrent.load("../torrents/sample.torrent"))
         {
             std::cerr
                 << "Failed to load torrent file\n";
@@ -102,7 +103,7 @@ int main()
         std::cout
             << "\n===== CONTACTING TRACKER =====\n";
 
-        std::string response =
+        std::string rawResponse =
             TcpClient::sendRequest(
                 tracker.host,
                 tracker.port,
@@ -110,18 +111,44 @@ int main()
             );
 
         std::cout
-            << "\n===== TRACKER RESPONSE =====\n";
+            << "\n===== RAW RESPONSE =====\n";
 
         std::cout
-            << response
+            << rawResponse
             << "\n";
+
+        HttpResponse response =
+            HttpResponse::parse(
+                rawResponse
+            );
+
+        response.print();
+
+        if (response.statusCode == 302)
+        {
+            std::cout
+                << "\n===== REDIRECT DETECTED =====\n";
+
+            auto it =
+                response.headers.find(
+                    "Location"
+                );
+
+            if (it != response.headers.end())
+            {
+                std::cout
+                    << "Redirect URL:\n"
+                    << it->second
+                    << "\n";
+            }
+        }
 
         std::cout
             << "\n=====================================\n"
             << "            Finished\n"
             << "\n=====================================\n";
     }
-    catch(const std::exception& e)
+    catch (const std::exception& e)
     {
         std::cerr
             << "\nException: "
