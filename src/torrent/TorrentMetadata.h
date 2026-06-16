@@ -19,5 +19,16 @@ public:
         const BencodeValue& root
     );
 
+    std::string getPieceHash(
+        int index
+    )const{
+        const int HASH_SIZE = 20;
+
+        return pieces.substr(
+            index*HASH_SIZE,
+            HASH_SIZE
+        );
+    }
+
     void print() const;
 };

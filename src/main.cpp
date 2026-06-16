@@ -23,6 +23,10 @@
 #include "peer/PeerMessageReceiver.h"
 #include "peer/BitfieldParser.h"
 #include "peer/InterestedMessage.h"
+#include "peer/RequestMessage.h"
+#include "peer/PieceMessage.h"
+#include "peer/PieceDownloader.h"
+#include "torrent/PieceHashVerifier.h"
 
 int main()
 {
@@ -265,84 +269,149 @@ int main()
 
                             foundValidPeer = true;
 
+                            bool gotBitfield = false;
+                            bool gotUnchoke = false;
+
                             std::cout
-                                << "\nWaiting for peer message...\n";
+                                << "\nWaiting for peer messages...\n";
 
-                            PeerMessage message =
-                                PeerMessageReceiver::receive(
-                                    PeerSession::getSocket()
-                                );
-
-                            PeerMessageParser::print(
-                                message
-                            );
-
-                            if(message.id == 5)
+                            while(true)
                             {
-                                std::string payload(
-                                    message.payload.begin(),
-                                    message.payload.end()
-                                );
-
-                                auto bitfield =
-                                    BitfieldParser::parse(
-                                        payload
-                                    );
-
-                                BitfieldParser::print(
-                                    bitfield
-                                );
-
-                                std::cout
-                                    << "\nSending INTERESTED...\n";
-
-                                std::string interested =
-                                    InterestedMessage::build();
-
-                                int sent =
-                                    send(
-                                        (SOCKET)PeerSession::getSocket(),
-                                        interested.data(),
-                                        (int)interested.size(),
-                                        0
-                                    );
-
-                                if(sent > 0)
-                                {
-                                    std::cout
-                                        << "INTERESTED sent\n";
-                                }
-                                else
-                                {
-                                    std::cout
-                                        << "Failed to send INTERESTED\n";
-                                }
-
-                                std::cout
-                                    << "\nWaiting for next message...\n";
-
-                                PeerMessage nextMessage =
+                                PeerMessage msg =
                                     PeerMessageReceiver::receive(
                                         PeerSession::getSocket()
                                     );
 
+                                PeerMessageParser::print(
+                                    msg
+                                );
+
+                                if(msg.length == 0)
+                                {
+                                    continue;
+                                }
+
+                                if(msg.id == 5)
+                                {
+                                    gotBitfield = true;
+
+                                    std::string payload(
+                                        msg.payload.begin(),
+                                        msg.payload.end()
+                                    );
+
+                                    auto bitfield =
+                                        BitfieldParser::parse(
+                                            payload
+                                        );
+
+                                    BitfieldParser::print(
+                                        bitfield
+                                    );
+                                }
+
+                                if(msg.id == 1)
+                                {
+                                    gotUnchoke = true;
+                                }
+
+                                if(gotBitfield)
+                                {
+                                    break;
+                                }
+                            }
+
+                            std::cout
+                                << "\nSending INTERESTED...\n";
+
+                            std::string interested =
+                                InterestedMessage::build();
+
+                            int sent =
+                                send(
+                                    (SOCKET)PeerSession::getSocket(),
+                                    interested.data(),
+                                    (int)interested.size(),
+                                    0
+                                );
+
+                            if(sent > 0)
+                            {
                                 std::cout
-                                    << "\n===== NEXT MESSAGE =====\n";
+                                    << "INTERESTED sent\n";
+                            }
+                            else
+                            {
+                                std::cout
+                                    << "Failed to send INTERESTED\n";
+                            }
+
+                            if(!gotUnchoke)
+                            {
+                                std::cout
+                                    << "\nWaiting for unchoke message...\n";
+
+                                while(true)
+                                {
+                                    PeerMessage nextMessage =
+                                        PeerMessageReceiver::receive(
+                                            PeerSession::getSocket()
+                                        );
+
+                                    PeerMessageParser::print(
+                                        nextMessage
+                                    );
+
+                                    if(nextMessage.length == 0)
+                                    {
+                                        continue;
+                                    }
+
+                                    if(nextMessage.id == 1)
+                                    {
+                                        gotUnchoke = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if(gotUnchoke)
+                            {
+                                std::cout
+                                    << "\nDownloading full piece 0...\n";
+
+                                auto pieceData =
+                                    PieceDownloader::downloadPiece(
+                                        0,
+                                        metadata.pieceLength
+                                    );
 
                                 std::cout
-                                    << "Length : "
-                                    << nextMessage.length
+                                    << "Downloaded bytes : "
+                                    << pieceData.size()
                                     << '\n';
 
-                                std::cout
-                                    << "ID : "
-                                    << (int)nextMessage.id
-                                    << '\n';
+                                std::string expectedHash =
+                                    metadata.getPieceHash(
+                                        0
+                                    );
 
-                                std::cout
-                                    << "Payload Bytes : "
-                                    << nextMessage.payload.size()
-                                    << '\n';
+                                bool verified =
+                                    PieceHashVerifier::verify(
+                                        pieceData,
+                                        expectedHash
+                                    );
+
+                                if(verified)
+                                {
+                                    std::cout
+                                        << "PIECE VERIFIED\n";
+                                }
+                                else
+                                {
+                                    std::cout
+                                        << "PIECE FAILED\n";
+                                }
                             }
 
                             break;
@@ -358,8 +427,9 @@ int main()
                     {
                         std::cout
                             << "\nNo responsive peer found.\n";
-                    }}
-        }
+                    }
+                }
+            }
 
         std::cout
             << "\n=====================================\n"
