@@ -26,7 +26,11 @@
 #include "peer/RequestMessage.h"
 #include "peer/PieceMessage.h"
 #include "peer/PieceDownloader.h"
-#include "torrent/PieceHashVerifier.h"
+#include "peer/PieceHashVerifier.h"
+#include "peer/PieceManager.h"
+#include "peer/PieceRequester.h"
+#include "storage/PieceStorage.h"
+#include "storage/FileAssembler.h"
 
 int main()
 {
@@ -377,40 +381,85 @@ int main()
 
                             if(gotUnchoke)
                             {
-                                std::cout
-                                    << "\nDownloading full piece 0...\n";
+                                int totalPieces =
+                                    (int)(metadata.pieces.size() / 20);
 
-                                auto pieceData =
-                                    PieceDownloader::downloadPiece(
-                                        0,
-                                        metadata.pieceLength
-                                    );
+                                PieceManager manager(totalPieces);
 
-                                std::cout
-                                    << "Downloaded bytes : "
-                                    << pieceData.size()
-                                    << '\n';
-
-                                std::string expectedHash =
-                                    metadata.getPieceHash(
-                                        0
-                                    );
-
-                                bool verified =
-                                    PieceHashVerifier::verify(
-                                        pieceData,
-                                        expectedHash
-                                    );
-
-                                if(verified)
+                                for(
+                                    int pieceIndex = 0;
+                                    pieceIndex < totalPieces;
+                                    pieceIndex++
+                                )
                                 {
-                                    std::cout
-                                        << "PIECE VERIFIED\n";
+                                    int actualPieceSize = metadata.pieceLength;
+                                    if (pieceIndex == totalPieces - 1)
+                                    {
+                                        actualPieceSize =
+                                            metadata.totalLength -
+                                            ((totalPieces - 1) * metadata.pieceLength);
+                                    }
+
+                                    auto pieceData =
+                                        PieceDownloader::downloadPiece(
+                                            pieceIndex,
+                                            actualPieceSize
+                                        );
+
+                                    bool verified =
+                                        PieceHashVerifier::verify(
+                                            pieceData,
+                                            metadata.getPieceHash(pieceIndex)
+                                        );
+
+                                    if(verified)
+                                    {
+                                        PieceStorage::savePiece(
+                                            pieceIndex,
+                                            pieceData
+                                        );
+
+                                        manager.markComplete(pieceIndex);
+
+                                        std::cout
+                                            << "Piece "
+                                            << pieceIndex
+                                            << " verified\n";
+                                    }
+                                    else
+                                    {
+                                        std::cout
+                                            << "Piece "
+                                            << pieceIndex
+                                            << " FAILED verification\n";
+                                    }
                                 }
-                                else
+
+                                if(manager.isComplete())
                                 {
                                     std::cout
-                                        << "PIECE FAILED\n";
+                                        << "\nAll pieces downloaded and verified.\n"
+                                        << "Assembling file: "
+                                        << metadata.name
+                                        << "...\n";
+
+                                    bool assembled =
+                                        FileAssembler::assemble(
+                                            "storage",
+                                            metadata.name,
+                                            totalPieces
+                                        );
+
+                                    if(assembled)
+                                    {
+                                        std::cout
+                                            << "File assembled successfully!\n";
+                                    }
+                                    else
+                                    {
+                                        std::cout
+                                            << "Failed to assemble file.\n";
+                                    }
                                 }
                             }
 

@@ -12,6 +12,7 @@ public:
     std::string name;
 
     long long pieceLength = 0;
+    long long totalLength = 0;
 
     std::string pieces;
 

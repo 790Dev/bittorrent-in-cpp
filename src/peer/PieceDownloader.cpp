@@ -1,6 +1,6 @@
 #include "PieceDownloader.h"
 
-#include "PeerMessageSender.h"
+#include "PieceRequester.h"
 #include "PeerMessageReceiver.h"
 #include "PeerSession.h"
 
@@ -26,7 +26,7 @@ PieceDownloader::downloadPiece(
                 pieceLength - offset
             );
 
-        PeerMessageSender::sendRequest(
+        PieceRequester::sendRequest(
             pieceIndex,
             offset,
             requestLength

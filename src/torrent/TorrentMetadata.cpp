@@ -53,6 +53,14 @@ TorrentMetadata::fromBencode(
                     infoDict["pieces"].value
                 );
         }
+
+        if(infoDict.count("length"))
+        {
+            metadata.totalLength =
+                std::get<long long>(
+                    infoDict["length"].value
+                );
+        }
     }
 
     return metadata;
@@ -76,6 +84,11 @@ void TorrentMetadata::print() const
     std::cout
         << "Piece Length : "
         << pieceLength
+        << '\n';
+
+    std::cout
+        << "Total Length : "
+        << totalLength
         << '\n';
 
     std::cout
